@@ -1,23 +1,21 @@
-// network.bicep
-// Deploys a Hub VNet (with AzureBastionSubnet) and a Spoke VNet (with a workload subnet),
-// then peers them bidirectionally.
 
-@description('Azure region for all resources')
+
+@description
 param location string = resourceGroup().location
 
-@description('Prefix used to name resources, e.g. "admindemo"')
+@description
 param namePrefix string = 'hubspoke'
 
-@description('Address space for the hub VNet')
+@description
 param hubVnetAddressPrefix string = '10.0.0.0/16'
 
-@description('Address prefix for the AzureBastionSubnet (must be /26 or larger)')
+@description
 param bastionSubnetPrefix string = '10.0.1.0/26'
 
-@description('Address space for the spoke VNet')
+@description
 param spokeVnetAddressPrefix string = '10.1.0.0/16'
 
-@description('Address prefix for the spoke workload subnet')
+@description
 param spokeWorkloadSubnetPrefix string = '10.1.1.0/24'
 
 // ---------- Hub VNet ----------
@@ -32,7 +30,7 @@ resource hubVnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
     }
     subnets: [
       {
-        // Name is required to be exactly this for Azure Bastion to work
+        // 
         name: 'AzureBastionSubnet'
         properties: {
           addressPrefix: bastionSubnetPrefix

@@ -1,7 +1,4 @@
 // main.bicep
-// Entry point for the hub-and-spoke deployment.
-// Deploy with:
-//   az deployment group create --resource-group <your-rg> --template-file main.bicep
 
 targetScope = 'resourceGroup'
 

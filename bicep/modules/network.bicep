@@ -1,27 +1,29 @@
 // network.bicep
+// "The Spoke"
 // Deploys a Hub VNet (with AzureBastionSubnet) and a Spoke VNet (with a workload subnet),
-// then peers them bidirectionally.
 
-@description('Azure region for all resources')
+
+@description('Generic Location parameter - East US')
 param location string = resourceGroup().location
 
-@description('Prefix used to name resources, e.g. "admindemo"')
+@description('Prefix to name resources')
 param namePrefix string = 'hubspoke'
 
-@description('Address space for the hub VNet')
+@description('Address space - hub VNet')
 param hubVnetAddressPrefix string = '10.0.0.0/16'
 
-@description('Address prefix for the AzureBastionSubnet (must be /26 or larger)')
+@description('Address prefix - AzureBastionSubnet')
 param bastionSubnetPrefix string = '10.0.1.0/26'
 
-@description('Address space for the spoke VNet')
+@description('Address space - spoke VNet')
 param spokeVnetAddressPrefix string = '10.1.0.0/16'
 
-@description('Address prefix for the spoke workload subnet')
+@description('Address prefix - spoke workload subnet')
 param spokeWorkloadSubnetPrefix string = '10.1.1.0/24'
 
-// ---------- Hub VNet ----------
-resource hubVnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
+
+// 
+resource hubVnet 'Microsoft.Network/virtualNetworks@2025-07-01' = {
   name: '${namePrefix}-hub-vnet'
   location: location
   properties: {
@@ -32,7 +34,6 @@ resource hubVnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
     }
     subnets: [
       {
-        // Name is required to be exactly this for Azure Bastion to work
         name: 'AzureBastionSubnet'
         properties: {
           addressPrefix: bastionSubnetPrefix
@@ -42,8 +43,7 @@ resource hubVnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
   }
 }
 
-// ---------- Spoke VNet ----------
-resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
+resource spokeVnet 'Microsoft.Network/virtualNetworks@2025-07-01' = {
   name: '${namePrefix}-spoke-vnet'
   location: location
   properties: {
@@ -63,8 +63,7 @@ resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
   }
 }
 
-// ---------- Peering: Hub -> Spoke ----------
-resource hubToSpokePeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2023-09-01' = {
+resource hubToSpokePeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2025-07-01' = {
   parent: hubVnet
   name: 'hub-to-spoke'
   properties: {
@@ -78,8 +77,7 @@ resource hubToSpokePeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeer
   }
 }
 
-// ---------- Peering: Spoke -> Hub ----------
-resource spokeToHubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2023-09-01' = {
+resource spokeToHubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2025-07-01' = {
   parent: spokeVnet
   name: 'spoke-to-hub'
   properties: {
@@ -93,7 +91,7 @@ resource spokeToHubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeer
   }
 }
 
-// ---------- Outputs ----------
+
 output hubVnetId string = hubVnet.id
 output hubVnetName string = hubVnet.name
 output spokeVnetId string = spokeVnet.id

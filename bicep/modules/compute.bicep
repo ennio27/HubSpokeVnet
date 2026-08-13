@@ -1,56 +1,55 @@
 //compute.bicep
-//Deploys 2 Linux-based VMs. 
-//No Public IPs; Vms are spread across Availability Zones 1 and 2. 
-//VMs are reachable exclusively through Bastion, and via the Load Balancer's public IP
+//Limited to deploy 1 Linux-based VM.  
+//VM access is conducted with Bastion, and reacheable through the Load Balancer's public IP
 
 
-//
-@description('Generic Location parameter - East US')
+@description('Default Location - West US 2')
 param location string = resourceGroup().location
 
-@description('Prefix used to name resources')
+@description('Default Name Value')
 param namePrefix string = 'hubspoke'
 
 @description('Resource ID - Workload Subnet')
 param workloadSubnetId string
 
-@description('Authentication type: sshPublicKey or password')
+@description('Authentication type: sshPublicKey or password') //set to take CREDENTIALS
 @allowed([
   'sshPublicKey'
   'password'
 ])
 param authenticationType string = 'sshPublicKey'
 
-@description('VM - Admin Username')
+@description('Username - Admin - VM')
 param adminUsername string = 'azureadmin'
 
-@description('VM admin password')
+@description('Password - Admin - VM')
 @secure()
 param adminPassword string = ''
 
-@description('SSH public key for VM Admin login')
+@description('SSH public key - VM')
 @secure()
 param adminSshPublicKey string = ''
 
 @description('VM Size')
 param vmSize string = 'Standard_E2s_v7'
 
-@description('Set to true only if the region supports Availability Zones')
-param UseAvailabilityZones bool = false
+@description('Toggles support for Availability Zones')
+param useAvailabilityZones bool = false
 
-@description('Limits the number of VMs that can be deployed')
+@description('VM Instance Limitation')
 @allowed([
   1
   2
 ])
-param vmCount int = 1 
+param vmCount int = 2 
 
 var allZones = ['1', '2']
 var vmZones = take(allZones, vmCount)
 
 
+////////
 
-//
+
 resource workloadNSG 'Microsoft.Network/networkSecurityGroups@2025-07-01' = {
     name: '${namePrefix}-workload-nsg'
     location: location
@@ -98,6 +97,7 @@ resource lbPip 'Microsoft.Network/publicIPAddresses@2025-07-01' = {
         publicIPAllocationMethod: 'Static'
     }
 }
+
 
 resource loadBalancer 'Microsoft.Network/loadBalancers@2025-07-01' = {
     name: '${namePrefix}-lb'
@@ -160,91 +160,95 @@ resource loadBalancer 'Microsoft.Network/loadBalancers@2025-07-01' = {
 
 
 //VM & NIC Configuration - Spread across 2 Availability Zones 
-resource nics 'Microsoft.Network/networkInterfaces@2025-07-01' = [for (zone, i) in vmZones: {
-    name: '${namePrefix}-vm${i + 1}-nic'
-    location: location
-    properties: {
-        ipConfigurations: [
+resource nics 'Microsoft.Network/networkInterfaces@2023-09-01' = [for (zone, i) in vmZones: {
+  name: '${namePrefix}-vm${i + 1}-nic'
+  location: location
+  properties: {
+    ipConfigurations: [
+      {
+        name: 'ipconfig1'
+        properties: {
+          subnet: {
+            id: workloadSubnetId
+          }
+          privateIPAllocationMethod: 'Dynamic'
+          loadBalancerBackendAddressPools: [
             {
-                name: 'ipconfig1'
-                properties: {
-                    subnet: {
-                        id: workloadSubnetId
-                            }
-                    privateIPAllocationMethod: 'Dynamic'
-                    loadBalancerBackendAddressPools: [
-                        {
-                            id: resourceId('Microsoft.Network/loadBalancers/backendAddressPools', '${namePrefix}-lb', 'backendPool')
-                        }
-                                                    ]
-                            }
+              id: resourceId('Microsoft.Network/loadBalancers/backendAddressPools', '${namePrefix}-lb', 'backendPool')
             }
-        ]
-        networkSecurityGroup: {
-            id: workloadNSG.id
-                            }
-                }   
-    dependsOn: [
-        loadBalancer
+          ]
+        }
+      }
     ]
-}
-]
+    networkSecurityGroup: {
+      id: workloadNSG.id
+    }
+  }
+  dependsOn: [
+    loadBalancer
+  ]
+}]
+
 
 resource vms 'Microsoft.Compute/virtualMachines@2023-09-01' = [for (zone, i) in vmZones: {
-    name: '${namePrefix}-vm${i + 1}'
-    location: location
-    zones: UseAvailabilityZones ? [
-        zone
-    ] : [
-
-    ]
-    properties: {
-        hardwareProfile: {
-            vmSize: vmSize
-        }
-        osProfile: {
-            computerName: '${namePrefix}-vm${i + 1}'
-            adminUsername: adminUsername
-            adminPassword: authenticationType == 'password' ? adminPassword : null
-            linuxConfiguration: authenticationType == 'sshPublicKey' ? {
-                disablePasswordAuthentication: true 
-                ssh: {
-                    publicKeys: [
-                        {
-                            path: '/Users/junior jon/$HOME/.ssh'
-                            keyData: adminSshPublicKey
-                        }
-                    ]
-                }
-            } : {
-                disablePasswordAuthentication: false
-            }
-
-        }
-        storageProfile: {
-            imageReference: {
-                publisher: 'Canonical'
-                offer: 'ubuntu-24_04-lts'
-                sku: 'server'
-                version: 'latest'
-            }
-            osDisk: {
-                createOption: 'FromImage'
-                managedDisk: {
-                    storageAccountType: 'Standard_LRS'
-                }
-            }
-        }
-        networkProfile: {
-            networkInterfaces: [
-                {
-                    id: nics[i].id
-                }
-            ]
-        }
+  name: '${namePrefix}-vm${i + 1}'
+  location: location
+  zones: useAvailabilityZones ? [
+    zone
+  ] : []
+  properties: {
+    hardwareProfile: {
+      vmSize: vmSize
     }
-}
-]
+    osProfile: {
+      computerName: '${namePrefix}vm${i + 1}'
+      adminUsername: adminUsername
+      adminPassword: authenticationType == 'password' ? adminPassword : null
+      linuxConfiguration: authenticationType == 'sshPublicKey' ? {
+        disablePasswordAuthentication: true
+        ssh: {
+          publicKeys: [
+            {
+              path: '/home/${adminUsername}/.ssh/authorized_keys'
+              keyData: adminSshPublicKey
+            }
+          ]
+        }
+      } : {
+        disablePasswordAuthentication: false
+      }
+    }
+    storageProfile: {
+      imageReference: {
+        publisher: 'Canonical'
+        offer: 'ubuntu-24_04-lts'
+        sku: 'server'
+        version: 'latest'
+      }
+      osDisk: {
+        createOption: 'FromImage'
+        managedDisk: {
+          storageAccountType: 'Standard_LRS'
+        }
+      }
+    }
+    networkProfile: {
+      networkInterfaces: [
+        {
+          id: nics[i].id
+        }
+      ]
+    }
+  }
+}]
+
+
+
+////////
+
 
 output loadBalancerPublicIp string = lbPip.properties.ipAddress
 output vmNames array = [for (zone, i) in vmZones: '${namePrefix}-vm${i + 1}']
+output workloadNSGId string = workloadNSG.id
+output loadbalancerId string = loadBalancer.id
+

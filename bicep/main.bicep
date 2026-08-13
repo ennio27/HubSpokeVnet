@@ -1,37 +1,36 @@
 // main.bicep
-// "The Hub"
 
-//
+
 targetScope = 'resourceGroup'
 
-@description('Generic Location parameter - West US 2')
+@description('Default Location - West US 2')
 param location string = resourceGroup().location
 
-@description('Prefix used to name resources')
+@description('Default Name Value')
 param namePrefix string = 'hubspoke'
 
-@description('VM admin username')
+@description('Username - Admin - VM')
 param adminUsername string = 'azureadmin'
 
-@description('VM admin password')
+@description('Password - Admin - VM')
 @secure()
 param adminPassword string = ''
 
-@description('Sets Authentication Method') //Set to password
+@description('Authentication Method') //set to take CREDENTIALS
 @allowed([
   'sshPublicKey'
   'password'
 ])
 param authenticationType string = 'password'
 
-@description('SSH public key')
+@description('SSH public key - VM')
 @secure()
 param adminSshPublicKey string = ''
 
-@description('Enables/Disables support for Availability Zones')
+@description('Toggles support for Availability Zones')
 param useAvailabilityZones bool = false 
 
-@description('Limits the number of VMs that can be deployed')
+@description('VM Instance Limitation')
 @allowed([
   1
   2
@@ -39,7 +38,9 @@ param useAvailabilityZones bool = false
 param vmCount int = 1 
 
 
-//
+////////
+
+
 module network 'modules/network.bicep' = {
   name: 'networkDeployment'
   params: {
@@ -66,16 +67,31 @@ module compute 'modules/compute.bicep' = {
     adminUsername: adminUsername
     adminPassword: adminPassword
     adminSshPublicKey: adminSshPublicKey
-    authenticationType: authenticationType
-    UseAvailabilityZones: useAvailabilityZones
+    authenticationType: authenticationType 
+    useAvailabilityZones: useAvailabilityZones
     vmCount: vmCount
   }
 }
 
 
-//
+module monitoring 'modules/monitoring.bicep' = {
+  name: 'monitoringDeployment'
+  params: {
+    location: location
+    namePrefix: namePrefix
+    nsgId: compute.outputs.workloadNSGId
+    loadBalancerId: compute.outputs.loadBalancerPublicIp
+    vmName: compute.outputs.vmNames[0]
+  }
+}
+
+
+////////
+
+
 output hubVnetName string = network.outputs.hubVnetName
 output spokeVnetName string = network.outputs.spokeVnetName
 output bastionHostName string = bastion.outputs.bastionHostName
 output loadBalancerPublicIp string = compute.outputs.loadBalancerPublicIp
 output vmNames array = compute.outputs.vmNames
+output logAnalyticsWorkspaceName string = monitoring.outputs.logAnalyticsWorkspaceName

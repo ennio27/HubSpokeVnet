@@ -25,6 +25,9 @@ The solution deploys:
 | **Monitoring** | **Azure Monitor** | Automated diagnostic settings and Data Collection Rules. |
 
 ##  Project Structure
+
+```text
+
 .
 ├── main.bicep              # Entry point; orchestrates module deployment
 ├── dev.bicepparam          # Environment-specific parameters
@@ -34,6 +37,8 @@ The solution deploys:
 │   ├── compute.bicep       # VMs, NICs, Load Balancer, and NSGs
 │   └── monitoring.bicep    # Log Analytics, Diagnostics, and DCRs
 └── README.md
+
+```
 
 ##  Validation & Testing
 
